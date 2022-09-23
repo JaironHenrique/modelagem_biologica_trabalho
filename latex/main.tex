@@ -1,0 +1,129 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[top=2cm, bottom=2cm, left=2.5cm, right=2cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{amssymb}
+\usepackage{yhmath}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+\usepackage{url}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Pp}{\mathbb{P}}
+
+\title{Rastreamento de Contatos em Modelo de Espalhamento de Doenças Infeccios em Redes Complexas em Tempo Discreto}
+\author{J. H. N. Batista}
+\date{Setembro 2022}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+    Resumo:
+    
+    A transmissão acelerada de doenças contagiosas são umas das principais ameças a saúde global. Visando contribuir com a atenuação do espalhamento desses males, o rastreamento de contato e a identificação de possíveis infectados é crucial. Nesse sentido, modelamos o espalhamento de uma doença infecciosa em um grafo estático (onde os vértices são os membros da população) em tempo discreto usando um modelo SIR simplificado. Esse trabalho propõe um algoritmo de Monte Carlo que estima a probabilidade de um vértice ter sido infectado, condicionado a informação sobre a infecção de outros vértices.
+\end{center}
+
+\section{Introdução}
+
+
+As doenças infecciosas são um grande risco para a saúde global, como mostrou a recente pandemia de COVID-19. Além disso, quando a OMS compilou uma lista das 10 principais ameaças à saúde global para se concentrar em 2019, os desafios da lista - que continham uma coleção de questões sérias, desde mudanças climáticas até instalações de saúde inadequadas - eram, mais da metade, constituídos por desafios ligados a doenças infecciosas, tanto emergentes quanto históricas.
+
+Em 1927, Kermack e McKendrick \cite{kermack1927} deram uma contribuição seminal para a compreensão da propagação de epidemias, introduzindo um modelo matemático agora conhecido como modelo de compartimentos. Desde então, modelos matemáticos, vêm sendo uma ferramenta útil para revelar a dinâmica de transmissão de doenças infecciosas. Nos últimos 3 anos esses modelos foram amplamente usados no estudo da COVID-19 \cite{massad, india, india2}. 
+
+Os modelos chamados de \textit{mean-field} (campo médio), normalmente baseados em equações diferenciais, supõem que a população seja homogenia e são ótimas ferramentas para o estudo de fenômenos \textit{macroscópicos}, como predição do número de infectados e mortos \cite{india, india2} e formulação de estratégias de vacinação \cite{vacina}, testagem \cite{massad} e distanciamento social \cite{distancialmento}.
+
+Contudo, tais modelos não são capazes de prevê fenômenos em menor escala ou considerar a heterogeneidade da população. Nesse contexto surgem os modelos de espalhamento baseados em grafos, que são capazes de estudar tais fenômenos.
+
+Sabe-se que muitas doenças infecciosas, como é o caso da COVID-19, apresentam altas taxas de pacientes assintomáticos, o que favorece o espalhamento da doença, pois tais pacientes não se isolam por acharem que não estão contaminando a população \cite{asymptomatic}. Desse modo, o rastreamento de contato é ferramenta fundamental no combate a uma pandemia, é preciso identificar possíveis pacientes assintomáticos, realizar testagem e sugerir o isolamento social. Dada a importância desse ato, muitos trabalhos surgiram tentando mapear os contatos entre os indivíduos usando dados de geolocalização, wifi e bluetooth \cite{ceara, tracing, tracing2}.
+
+Nesse trabalho, foi utilizado um modelo SIR teórico em tempo discreto, de uma doença que se espalha em um grafo (estático). Iremos supor que, para alguns nós da rede que foram infectados, conhecemos se eles foram infectados, mas para outros nós infectados, nós não conhecemos se eles foram ou não infectados. Assumimos também que para os nós que sabemos se foram infectados, sabemos também o dia da infecção. O objetivo é elaborar um método estatístico, basado na técnica de Monte Carlo (MC) e \textit{Importance Sampling} \cite{ImportSample}, para estimar a probabilidade de um dado vértice $v$ ter sido infectado, condicionado aos dados observados.
+
+\section{Revisão Bibliográfica}
+
+Em \cite{SISCidadeControle} o autor faz um modelo de espalhamento de doenças do tipo SIS em que cada nó do grafo é uma região (cidade, bairro) que possui uma proporção $x_i(t)$ de infectados, onde $i$ é um vértice do grafo e $t$ o instante de tempo (aqui admite-se tempo discreto), tais proporções interagem entre si por meio de uma matriz de adjacência contendo o peso da iteração entre cada vértice; o artigo visa resolver um problema de controle ótimo da melhor estratégia para reduzir o efeito da doença, a partir de medidas de isolamentos sociais intra e inter as regiões. Já em \cite{SEIRgrafo} é estudado um modelo, em tempo contínuo, de transmissão de doença do tipo SEIR, onde para cada nó $v$ do grafo (que também representa um região) está associado as quantidades $s_v(t)$, $e_v(t)$, $i_v(t)$ e $r_v(t)$, respectivamente, proporção de suscetíveis, exposto, infectados e recuperados, tais quantidade interagem entre si por meio de uma matriz de adjacências.
+
+Os modelos a cima não consideram o contato \textit{face-a-face} dos indivíduos da população, i.e., os vértices do grafo não modelam diretamente as pessoas. Mas na literatura existem muitos trabalhos nesta direção. Tais modelos podem ser estudados considerando um modelo markoviano em tempo contínuo \cite{grafoTC} ou em tempo discreto \cite{lattice, LatticeGeo,EMV, Main, Main2}. Esse trabalho terá foco no estudo em tempo discreto.
+
+Em \cite{lattice} o autor faz um estudo considerando o grafo da conexão entre as pessoas como sendo um Lattice $D$-dimensional, i.e., um grafo $G=(V,E)$, onde
+\[V = (\Z \cap [-n,n])^D, \, E = \{(v,u) : ||u-v|| = 1, \, u,v \in V\}. \]
+ Nesse modelo são considerados alguns vértices ``desocupados", a alocação dos vértices ocupados (que muda a cada instante de tempo) é dada aleatoriamente de forma semelhante ao modelo de Ising (amplamente estudado em mecânica estatística) levando em consideração a distribuição das idades, enquanto que a transmissão da doença se assemelha a um modelo SIR; como o grafo das conexões se altera, este é um exemplo de um modelo com grafo dinâmico. Em \cite{LatticeGeo} o autor faz um hibrido entre o modelo anterior e um modelo de grafo em cidades, nesse artigo, a dinâmica em cada cidade se dá por um modelo de Lattice, mas além disso, pode haver contágio entre cidades vizinhas. Em ambos os trabalhos, as simulações são feitas usando o método de Monte Carlo.
+
+Na literatura, técnicas de espalhamentos em grafos vão muito além da epidemiologia, sendo comumente usada no estudo de espalhamento de rumores, informação e fakenews \cite{rumor, rumor1}.
+
+Nesse trabalho, consideraremos um grafo estático, tal como em \cite{Main2}, i.e., o grafo é o mesmo em todo o tempo. Em \cite{Main2} é construído um grafo onde os vértices representam pessoas de uma fração da população da Arábia Saudita, usando dados reais. Nesse trabalho as arestas que ligam os vértices são de 3 tipos: familiar (ocorrem quando os indivíduos são da mesma família), social (ocorrem quando indivíduos tem propriedades parecidas - moram perto, mesma idade, mesmo sexo etc) e aleatórias (simulam o contato com pessoas quaisquer, taxista, vendedores etc) - de modo que esse grafo possui a propriedade de \textit{small world} - e simulam um modelo em tempo discreto da disseminação da COVID-19 (semelhante a um modelo SIRS) sendo cada instante de tempo equivalente a uma dia, via o método MC. Os resultados são muito próximo a realidade nos dois primeiros meses da pandemia. Essa simulação é usada para estimar o efeito de medidas de contenção específicas, como fechamento de escolas.
+
+Em \cite{Main} o autor considera um grafo gerado aleatoriamente com a propriedade de ser \textit{livre de escala}, e cuja a distribuição dos graus segue uma lei de potência, $P(k) \sim k^{-\gamma}$. O modelo de espalhamento da doença é um modelo SIS. É considerado um grafo $G = (V, E)$ - com $|V| = N$ -, associado a uma matriz de pesos $R = [r_{ij}]_{ij}$, onde $r_{ij} > 0$ somente quando os vértices $i$ e $j$ estão conectados. $G$ representa a ligação face-a-face dos indivíduos, enquanto $r_{ij}$ é igual a probabilidade do nó $i$ infectar o nó $j$ no próximo instante de tempo, dado que $i$ está infectado no tempo atual. Um nó infectado retorna a ser suscetível com probabilidade $\mu$ para cada unidade de tempo. A dinâmica segue da seguinte forma
+
+\begin{itemize}
+    \item No tempo inicial $t = 0$ uma fração da populaça começa infectada;
+    \item Em um tempo $t$, cada nó $j$ que é vizinho de um nó $i$ infectado possui probabilidade $r_{ij}$ de ser infectado no tempo $t+1$;
+    \item Após isso, cada nó infectado no tempo $t$ retorna a ser suscetível no tempo $t+1$ com probabilidade $\mu$.
+\end{itemize}
+
+Nesse artigo é estudado a influência dos parâmetros na \textit{densidade esperada de infecção}, que pode tanto ser calculada tanto analiticamente quanto usando MC, o artigo compara os dois métodos e conclui que o método de MC fornece uma boa estimativa.
+
+No que diz respeito a inferência de parâmetros em modelos baseados em grafos, em \cite{EMV} o autor encontra o estimador de máxima verossimilhança do vértice inicial (paciente 0) de um modelo de espalhamento de doença em grafos, em um modelo em que alguns dos vértices infectados são conhecidos. Muitos trabalhos na literatura utilizam o método de MC para estimar propriedades de grafos como em \cite{estimatingpath}, mesmo para trabalhos não relacionados a contágio. 
+
+%Não existe na literatura trabalho que tente inferir a probabilidade de um vértice fixo ter sido infectado.
+
+\section{Metodologia e Modelo}
+
+O modelo proposto é principalmente baseado em \cite{Main, Main2}. Consideraremos um grafo $G = (V,E)$, com $|V| = N$ a qual está associado uma matriz e uma matriz $R = [r_{ij}]_{ij}$ onde $r_{ij} > 0$ somente quando $i$ e $j$ estão conectados. O modelo será do tipo $SIR$, onde vamos assumir que, uma vez que uma pessoa infectada se recupere, ela não se infectará novamente (o que é uma boa aproximação para curtos períodos de tempo). Aqui, vamos fixa que a taxa de recuperação definida em \cite{Main} é dada por $\mu = 1$, fazemos isso para simplificar a estrutura da árvore de infecção da dinâmica, tal pressuposto significa que consideramos que o tempo em que cada pessoa permanece infectada é constante. Essa modelo, pode também ser usado para propagação de rumor. Vamos supor conhecido o paciente 0. A dinâmica do modelo seguirá da seguinte forma,
+
+\begin{itemize}
+    \item Inicialmente, no tempo $t = 0$, um pessoa está infectada.
+    \item No tempo $t$, cada vértice infectado ``tentará" infectar os vértices vizinhos que são suscetíveis com probabilidade de sucesso igual a $r_{ij}$. No tempo $t + 1$ todos os vértice infectados no tempo $t$ tornam-se recuperados e os novos vértices infectados continuam a dinâmica. 
+\end{itemize}
+
+Considere que avaliamos o processo até um tempo $T$. Assuma que para um conjunto $ \{v_1, v_2, \dots, v_m\} = V' \subset V$ de nós que foram infectados, é conhecido o instante da infecção $t_1, t_2, \dots, t_m$. Chamamos de $C$ o evento,
+\[C = \{v_i \textrm{ foi infectado no tempo } t_i, \, i = 1,2, \dots m\}.\]
+Dado $v \in V$, será apresentado um algoritmo que estima
+
+\[\Pp(v \textrm{ ter sido infectado}|C).\]
+
+Para testar o algoritmo proposto, foram geradas redes aleatórias de 4 tipos diferentes:
+
+\begin{itemize}
+    \item Grafo de Erdös-Rényi \cite{Erdos, ErdosNx};
+    \item Grafo de Barabási-Albert (Livre de Escalas) \cite{barabasi, barbasiNx};
+    \item Grafo de Watts–Strogatz (Small World) \cite{Small, SmallNx};
+    \item Lattice $D$-dimensional (com fronteira periódica).
+\end{itemize}
+
+Os três primeiros desses modelos de geração de grafos são úteis por possuírem características comumente presente em redes do mundo real. O último não é tão fidedigno, mas é útil para entender a limitação do algoritmo, pois é um grafo pouco conexo o que possivelmente torna-se um desafio.
+
+Após gerar a estrutura do grafo, adicionaremos pesos aleatoriamente a cada uma das arestas.
+
+Para cada um dos 4 grafos, geraremos 3 diferentes realizações do processo de infecção até um tempo $T$ pré-fixado. Em seguida, mediremos a eficiência do algoritmo proposta em cada um dos 12 grafos, cada um deles com a mesma quantidade de vértices $N$.
+
+Para gerar os grafos tomou-se $N = ?$, $T=?$ e
+
+\begin{itemize}
+    \item Probabilidade $p = 0.036$ de inserção de aresta, no grafo de Erdös-Rényi;
+    \item Número de arestas $m = 0.018N(N-1)$ para o modelo de Barabási-Albert;
+    \item Com $k = 0.072(N-1)$ arestas ligadas em cada nó da rede para o modelo de Watts-Strogatz;
+    \item $D = 4$ no modelo de Lattice.
+
+A justificativa dessa escolha é manter a densidade de aresta, $\frac{|E|}{\binom{N}{2}}$, próximo de $0.036$ que é o observado em \cite{Main2}, a menos para o modelo do Lattice, que foi escolhido $D$ para replicar \cite{lattice}.
+    
+\end{itemize}
+
+\section{Observação:}
+
+(Não estabeleci nessa seção o horizonte $T$ da pandemia, nem o número de vértices $N$ e nem os parâmetros para gerar os pesos. Completarei essa parte da metodologia somente na A2, pois preciso fazer teste para definir isso)
+
+\newpage
+
+\nocite{*}
+\bibliographystyle{unsrt}
+\bibliography{bibliografia}
+
+\end{document}
+ 
