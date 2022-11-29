@@ -8,6 +8,9 @@
 \usepackage{graphicx}
 \usepackage{indentfirst}
 \usepackage{url}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{bbm}
 
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\N}{\mathbb{N}}
@@ -27,7 +30,7 @@
 \begin{center}
     Resumo:
     
-    A transmissão acelerada de doenças contagiosas são umas das principais ameças a saúde global. Visando contribuir com a atenuação do espalhamento desses males, o rastreamento de contato e a identificação de possíveis infectados é crucial. Nesse sentido, modelamos o espalhamento de uma doença infecciosa em um grafo estático (onde os vértices são os membros da população) em tempo discreto usando um modelo SIR simplificado. Esse trabalho propõe um algoritmo de Monte Carlo que estima a probabilidade de um vértice ter sido infectado, condicionado a informação sobre a infecção de outros vértices.
+    A transmissão acelerada de doenças contagiosas é umas das principais ameças a saúde global. Visando contribuir com a atenuação do espalhamento desses males, o rastreamento de contato e a identificação de possíveis infectados é crucial. Nesse sentido, modelamos o espalhamento de uma doença infecciosa em um grafo estático (onde os vértices são os membros da população) em tempo discreto usando um modelo SIR simplificado. Esse trabalho propõe um algoritmo de Monte Carlo que estima a probabilidade de um vértice ter sido infectado, condicionado a informação sobre a infecção de outros vértices.
 \end{center}
 
 \section{Introdução}
@@ -43,7 +46,7 @@ Contudo, tais modelos não são capazes de prevê fenômenos em menor escala ou 
 
 Sabe-se que muitas doenças infecciosas, como é o caso da COVID-19, apresentam altas taxas de pacientes assintomáticos, o que favorece o espalhamento da doença, pois tais pacientes não se isolam por acharem que não estão contaminando a população \cite{asymptomatic}. Desse modo, o rastreamento de contato é ferramenta fundamental no combate a uma pandemia, é preciso identificar possíveis pacientes assintomáticos, realizar testagem e sugerir o isolamento social. Dada a importância desse ato, muitos trabalhos surgiram tentando mapear os contatos entre os indivíduos usando dados de geolocalização, wifi e bluetooth \cite{ceara, tracing, tracing2}.
 
-Nesse trabalho, foi utilizado um modelo SIR teórico em tempo discreto, de uma doença que se espalha em um grafo (estático). Iremos supor que, para alguns nós da rede que foram infectados, conhecemos se eles foram infectados, mas para outros nós infectados, nós não conhecemos se eles foram ou não infectados. Assumimos também que para os nós que sabemos se foram infectados, sabemos também o dia da infecção. O objetivo é elaborar um método estatístico, basado na técnica de Monte Carlo (MC) e \textit{Importance Sampling} \cite{ImportSample}, para estimar a probabilidade de um dado vértice $v$ ter sido infectado, condicionado aos dados observados.
+Nesse trabalho, foi utilizado um modelo SIR teórico em tempo discreto, de uma doença que se espalha em um grafo (estático). Iremos supor que, para alguns nós da rede que foram infectados, conhecemos se eles foram infectados, mas para outros nós infectados, não conhecemos se eles foram ou não infectados. Assumimos também que para os nós que sabemos se foram infectados, sabemos também o dia da infecção. O objetivo é elaborar um método estatístico, basado na técnica de Monte Carlo (MC) e \textit{Importance Sampling} \cite{ImportSample}, para estimar a probabilidade de um dado vértice $v$ ter sido infectado, condicionado aos dados observados.
 
 \section{Revisão Bibliográfica}
 
@@ -82,44 +85,179 @@ O modelo proposto é principalmente baseado em \cite{Main, Main2}. Consideraremo
     \item No tempo $t$, cada vértice infectado ``tentará" infectar os vértices vizinhos que são suscetíveis com probabilidade de sucesso igual a $r_{ij}$. No tempo $t + 1$ todos os vértice infectados no tempo $t$ tornam-se recuperados e os novos vértices infectados continuam a dinâmica. 
 \end{itemize}
 
+\begin{algorithm}
+\caption{Amostragem de Árvore de Infecção} \label{alg:arv}
+\begin{algorithmic}
+\Require{G, R}
+\For{t = 1:T}
+    \For{v \texttt{infectado no tempo} t}
+        \For{u \texttt{vizinho de} v}
+            \If{u \texttt{Não foi infectado}}
+                \State infectar u com probabilidade $r_{vu}$
+            \EndIf
+        \EndFor
+    \EndFor
+\EndFor 
+\end{algorithmic}
+\end{algorithm}
+
 Considere que avaliamos o processo até um tempo $T$. Assuma que para um conjunto $ \{v_1, v_2, \dots, v_m\} = V' \subset V$ de nós que foram infectados, é conhecido o instante da infecção $t_1, t_2, \dots, t_m$. Chamamos de $C$ o evento,
 \[C = \{v_i \textrm{ foi infectado no tempo } t_i, \, i = 1,2, \dots m\}.\]
 Dado $v \in V$, será apresentado um algoritmo que estima
 
-\[\Pp(v \textrm{ ter sido infectado}|C).\]
+\[\Pp(v \textrm{ ter sido infectado no tempo }  t|C).\]
 
-Para testar o algoritmo proposto, foram geradas redes aleatórias de 4 tipos diferentes:
+Para testar o algoritmo proposto, foram geradas redes aleatórias de 2 tipos diferentes:
 
 \begin{itemize}
     \item Grafo de Erdös-Rényi \cite{Erdos, ErdosNx};
-    \item Grafo de Barabási-Albert (Livre de Escalas) \cite{barabasi, barbasiNx};
-    \item Grafo de Watts–Strogatz (Small World) \cite{Small, SmallNx};
-    \item Lattice $D$-dimensional (com fronteira periódica).
+    \item Grafo de Barabási-Albert (Livre de Escalas) \cite{barabasi, barbasiNx}.
 \end{itemize}
 
-Os três primeiros desses modelos de geração de grafos são úteis por possuírem características comumente presente em redes do mundo real. O último não é tão fidedigno, mas é útil para entender a limitação do algoritmo, pois é um grafo pouco conexo o que possivelmente torna-se um desafio.
+Os três primeiros desses modelos de geração de grafos são úteis por possuírem características comumente presente em redes do mundo real.
 
 Após gerar a estrutura do grafo, adicionaremos pesos aleatoriamente a cada uma das arestas.
 
-Para cada um dos 4 grafos, geraremos 3 diferentes realizações do processo de infecção até um tempo $T$ pré-fixado. Em seguida, mediremos a eficiência do algoritmo proposta em cada um dos 12 grafos, cada um deles com a mesma quantidade de vértices $N$.
+Para cada um dos 2 grafos, geraremos uma realizações do processo de infecção até um tempo $T$ pré-fixado. Em seguida, mediremos a eficiência do algoritmo (calculando o número de rejeições do algoritmo) proposta em cada um dos 2 grafos, alterando a proporção de infectados conhecidos, cada um deles com a mesma quantidade de vértices $N$.
 
-Para gerar os grafos tomou-se $N = ?$, $T=?$ e
+Para gerar os grafos tomou-se $N = 400$, $T=7$ e
 
 \begin{itemize}
     \item Probabilidade $p = 0.036$ de inserção de aresta, no grafo de Erdös-Rényi;
-    \item Número de arestas $m = 0.018N(N-1)$ para o modelo de Barabási-Albert;
-    \item Com $k = 0.072(N-1)$ arestas ligadas em cada nó da rede para o modelo de Watts-Strogatz;
-    \item $D = 4$ no modelo de Lattice.
+    \item Número de arestas adicionadas em cada passo $m = 0.018(N-1)$ para o modelo de Barabási-Albert.
+\end{itemize} 
 
-A justificativa dessa escolha é manter a densidade de aresta, $\frac{|E|}{\binom{N}{2}}$, próximo de $0.036$ que é o observado em \cite{Main2}, a menos para o modelo do Lattice, que foi escolhido $D$ para replicar \cite{lattice}.
-    
-\end{itemize}
+A justificativa dessa escolha é manter a densidade de aresta, $\frac{|E|}{\binom{N}{2}}$, próximo de $0.036$ que é o observado em \cite{Main2}.
 
-\section{Observação:}
+\section{Algoritmo e Resultado}
 
-(Não estabeleci nessa seção o horizonte $T$ da pandemia, nem o número de vértices $N$ e nem os parâmetros para gerar os pesos. Completarei essa parte da metodologia somente na A2, pois preciso fazer teste para definir isso)
+Comece observando que, por definição, 
+
+\[\theta_0 := \Pp(v \textrm{ ter sido infectado no tempo }  t|C) = \frac{\Pp(C, v \textrm{ ter sido infectado no tempo }  t)}{\Pp(C)}. \]
+
+Denotemos por $C' = \{v \textrm{ ter sido infectado no tempo }  t\} \cap C$. Se $\theta_1 = \Pp(C)$ e $\theta_2 = \Pp(C')$, então $\theta_0 = \frac{\theta_2}{\theta_1}$.
+
+Sendo assim, vamos encontrar estimadores $\hat{\theta_1}$ e $\hat{\theta_2}$ de $\theta_1$ e $\theta_2$ tomados independentemente e definiremos $\hat{\theta_0} = \frac{\hat{\theta_2}}{\hat{\theta_1}}$. Note que o método de estimar $\theta_1$ e $\theta_2$ são idênticos por terem a mesma expressão probabilística. 
+
+Fixemos o grafo $G$ e os pesos $R$. Denotamos por $\tau$ o conjunto de todas as subárvores de $G$ enraíza no paciente 0. Note que o Algoritmo \ref{alg:arv} gera árvores aleatória pertencentes a $\tau$ conforme uma probabilidade $p$
+
+
+\[p: \tau \to [0,1]\]
+\[\mathcal{T} \mapsto p(\mathcal{T}).\]
+
+Caso o evento $C$ ocorra ao gerar a árvore $\mathcal{T}$ denotaremos $C \subset \mathcal{T}$. Assim, uma proposta simples seria definir
+
+\[\hat{\theta_1} = \frac{\sum_{i=1}^n \mathbbm{1}_{\{C \subset \mathcal{T}_i\}}}{n}, \]
+
+Considerando $\mathcal{T}_i$ amostrados segundo $p$. Contudo esse estimador sofre com o problema de \textit{evento raro} como descrito em \cite{ImportSample}, como é improvável que qualquer árvore aleatória seja tal que $C \subset \mathcal{T}$ esse estimador é quase sempre 0. Sendo assim o que será proposto é considerar uma outra medida de probabilidade sobre $\tau$, 
+
+\[p_*: \tau \to [0,1]\]
+\[\mathcal{T} \mapsto p_*(\mathcal{T}).\]
+
+
+E o estimador que será proposto nesse trabalho é
+
+\[\hat{\theta_1} = \frac{\sum_{i=1}^n \mathbbm{1}_{\{C \subset \mathcal{T}^*_i\}} \frac{p(\mathcal{T}^*_i)}{p_*(\mathcal{T}^*_i)} }{n}, \]
+
+Com $\mathcal{T}_i^*$ amostrado segundo $p_*$. As garantias matemáticas sobre esse estimador (a.g., não ser enviesado) pode ser encontrado em \cite{ImportSample}. Definiremos $p_*$ como sendo a medida de probabilidade de amostragem de árvores seguindo a dinâmica do algoritmo \ref{alg:arvv}.
+
+\begin{algorithm}
+\caption{Amostragem de Árvore de Infecção com Viés} \label{alg:arvv}
+\begin{algorithmic}
+\Require{G, R, C}
+\For{t = 1:T}
+    \For{v \texttt{infectado no tempo} t}
+        \For{u \texttt{vizinho de} v}
+            \If{u \texttt{está em }C}
+                \If{u \texttt{observado que foi infectado no tempo }t }
+                    \State infecta u
+                \EndIf
+            \Else
+                \If{u \texttt{Não foi infectado}}
+                    \State infectar u com probabilidade $r_{vu}$
+                \EndIf
+            \EndIf
+        \EndFor
+    \EndFor
+    \If{\texttt{Algum vértice em C não foi infectado}}
+        \State Reinicia o Algoritmo
+    \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+Resta, computar $\frac{p(\mathcal{T}^*_i)}{p_*(\mathcal{T}^*_i)}$. Para tanto, vamos denotar $\mathcal{T}_i^*(t)$ os eventos ocorridos até o instante $t$ do processo de espalhamento e diremos que $v \in \mathcal{T}_i^*(t)$ caso $v$ tenha sido infectado no tempo $t$, caso contrário pomos $v \not\in \mathcal{T}_i^*(t)$. Observe que pela característica markoviana das dinâmicas podemos escrever
+
+\[\frac{p(\mathcal{T}^*_i)}{p_*(\mathcal{T}^*_i)} = \prod_{t = 1}^T \frac{p(\mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1))}{p_*(\mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1))}\]
+
+Note que condicionado a $\mathcal{T}_i^*(t-1)$ a infecção de cada vértice no tempo $t$ é independente. De sorte que 
+
+\[\frac{p(\mathcal{T}^*_i)}{p_*(\mathcal{T}^*_i)} = \prod_{t = 1}^T \left( \prod_{v \in \mathcal{T}_i^*(t)} \frac{p(v \in \mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1))}{p_*(v \in \mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1))} \cdot \prod_{v \not \in \mathcal{T}_i^*(t)} \frac{p(v \not \in \mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1))}{p_*(v \not \in \mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1))}  \right). \]
+
+Mas, condicionado a $\mathcal{T}_i^*(t-1)$, a menos que $v$ seja um dos vértices que conhecemos o dia de infecção, $p(v \in \mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1)) = p_*(v \in \mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1))$ e $p(v \not \in \mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1)) = p_*(v \not \in \mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1))$. Logo precisamos calcular essa razão somente nos vértices que conhecemos o dia de infecção. Tome $v$ um vértice que é conhecido que a infecção foi dada no dia $t$, nesse caso, $p_*(v \in \mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1)) = 1$ e 
+
+\[p(v \in \mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1)) = 1 - \prod_{\substack{u \textrm{ infectado}  \\ \textrm{no dia } t-1}} (1 - r_{uv}).\]
+
+Agora, sabemos que $v$ foi infectado, mas sabemos que o dia não foi o dia $t$, então $p_*(v \not \in \mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1)) = 1$,
+
+\[p(v \not \in \mathcal{T}_i^*(t)|\mathcal{T}_i^*(t-1)) = \prod_{\substack{u \textrm{ infectado}  \\ \textrm{no dia } t-1}} (1 - r_{uv}).\]
+
+Assim, podemos computar $\frac{p(\mathcal{T}^*_i)}{p_*(\mathcal{T}^*_i)}$ via programação dinâmica. A implementação pode ser encontrada em \url{https://github.com/JaironHenrique/modelagem_biologica_trabalho}.
+
+
+\section{Resultados}
+
+Em cada modelo de topologia da rede, amostramos 30\%, 50\%, 70\% e 90\% dos infectados como sendo os conhecidos e comparamos a execução. Foram realizadas 200 amostras de Monte Carlo, onde desistimos da executar o algoritmo se forem rejeitadas mais de 100 árvores. 
+
+Para o modelo de Erdös-Rényi, o modelo infectou 67 dos 200 membros da população. O resultado obtido foi o da tabela \ref{table:1}.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{||c | c |} 
+ \hline
+ Percentual & Número de rejeições \\ [0.5ex] 
+ \hline\hline
+ 90 & 3  \\ 
+ 70 & 5   \\
+ 50 & $>$ 100  \\
+ 30 & $>$ 100  \\
+ \hline
+\end{tabular}
+\caption{Erdös-Rényi}
+\label{table:1}
+\end{table}
+
+Para o modelo de Barabási-Albert, o modelo infectou 180 dos 200 membros da população. O resultado obtido foi o da tabela \ref{table:2}.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{||c | c |} 
+ \hline
+ Percentual & Número de rejeições \\ [0.5ex] 
+ \hline\hline
+ 90 & $>$ 100  \\ 
+ 70 & $>$ 100   \\
+ 50 & $>$ 100  \\
+ 30 & $>$ 100  \\
+ \hline
+\end{tabular}
+\caption{Barabási-Albert}
+\label{table:2}
+\end{table}
+
+
+\section{Discussão}
+
+O funcionamento desse algoritmo é bem restrito - só tendo conseguido terminar a execução para o grafo de Erdös-Reyni - , como esperado, afinal é uma proposta bem simples para um problema bastante complexo. Contudo, o fato do algoritmo funcionar (e de modo muito eficiente) quando conhecemos uma parcela grande dos infectados para o modelo de Erdös-Rényi aponta que talvez estamos na direção correta. Nota-se também que conhecer uma parcela grande dos infectados ajuda o funcionamento do algoritmo.
+
+No mais, simular os processos, mostra que uma topologia de rede do tipo Barabási-Albert aumento o número de infectados em relação a topologia de Erdös-Reyni. Isso é bastante razoável, pois existir um nó muito influente na rede, aumenta a taxa de espalhamento.
+
+\section{Conclusão}
+
+O método tratado nesse artigo ainda é um método muito falho e não funcionaria em problemas reais. Contudo, os avanços nesse artigos são positivos, por termos definido formalmente o problema e elaborado e testado um primeiro protótipo de solução, que, apesar de falha pode ser a base de uma boa solução - tendo em vista o caráter introdutório desse trabalho. Por exemplo, podemos considerar uma alteração na proposta de $p_*$, na qual poderíamos seguir o processo de infecção em mais de um instante de tempo diferente reduzindo a quantidade de amostras rejeitadas (como seguir a árvore a partir do tempo final) ou utilizar Metropolis-Hasting para amostrar sempre em árvores possíveis, o que é um desafio, pois tem que ser elaborada uma proposta que preserve a estrutura das árvores.
 
 \newpage
+
 
 \nocite{*}
 \bibliographystyle{unsrt}
